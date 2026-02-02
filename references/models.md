@@ -262,10 +262,10 @@ Only model with real-time data access and X/Twitter integration.
 
 | Priority | Model | Why |
 |----------|-------|-----|
-| Cheapest | Gemini Flash | $0.075/1K in |
+| Cheapest | Gemini Flash | $0.075/1M in |
 | Best value | GPT-5 | Subscription |
-| Quality/cost balance | Sonnet | $3/1K in |
-| Best quality | Opus | $15/1K in |
+| Quality/cost balance | Sonnet | $3/1M in |
+| Best quality | Opus | $15/1M in |
 
 ### By Context Size
 

@@ -389,9 +389,9 @@ def route_with_fallback(request):
 def get_allowed_tiers(complexity: str) -> list[str]:
     """Return allowed cost tiers for a given complexity level."""
     return {
-        "SIMPLE":  ["$"],           # Budget only — no exceptions
-        "MEDIUM":  ["$", "$$"],     # Budget + standard
-        "COMPLEX": ["$", "$$", "$$$"],  # Any tier allowed
+        "SIMPLE":  ["$"],                      # Budget only — no exceptions
+        "MEDIUM":  ["$", "$$"],                # Budget + standard
+        "COMPLEX": ["$", "$$", "$$$", "$$$$"], # All tiers — complex tasks deserve the best
     }.get(complexity, ["$", "$$"])
 
 
