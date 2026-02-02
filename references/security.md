@@ -439,7 +439,14 @@ class RateLimiter:
         return True, "OK"
 
 def is_premium_model(model: str) -> bool:
-    """Check if model is premium ($$$) tier."""
+    """
+    Check if model should be rate-limited as premium.
+    
+    Note: GPT-5 is $$ tier (subscription-based, no per-token cost) but is
+    included here because it consumes a paid ChatGPT Plus subscription
+    allocation. Excessive use could hit OpenAI's usage caps or degrade
+    the user's subscription experience for other purposes.
+    """
     return model in ["opus", "gemini-pro", "gpt-5"]
 ```
 
