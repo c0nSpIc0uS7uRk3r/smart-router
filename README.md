@@ -226,7 +226,7 @@ The capital of France is Paris.
 
 ### Model Selection Matrix
 
-| Intent | Simple ($) | Medium ($$) | Complex ($$$) |
+| Intent | Simple ($) | Medium ($$) | Complex ($$$$) |
 |--------|------------|-------------|---------------|
 | **CODE** | Sonnet | Sonnet | Opus |
 | **ANALYSIS** | Flash | Sonnet/GPT-5 | Opus |
@@ -271,7 +271,7 @@ COST_TIERS = {
     "flash": "$",      # Budget
     "haiku": "$",      # Budget
     "sonnet": "$$",    # Standard
-    "opus": "$$$",     # Premium
+    "opus": "$$$$",    # Premium
     # ...
 }
 ```

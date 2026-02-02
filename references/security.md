@@ -447,6 +447,7 @@ def is_premium_model(model: str) -> bool:
     allocation. Excessive use could hit OpenAI's usage caps or degrade
     the user's subscription experience for other purposes.
     """
+    # GPT-5 included despite $$ cost tier — consumes paid ChatGPT Plus subscription allocation
     return model in ["opus", "gemini-pro", "gpt-5"]
 ```
 
