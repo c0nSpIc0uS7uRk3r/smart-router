@@ -2,7 +2,7 @@
 
 Detailed specifications and pricing for supported models.
 
-## Pricing Overview (per 1K tokens, Feb 2026)
+## Pricing Overview (per 1M tokens, Feb 2026)
 
 | Model | Input | Output | Cache Read | Cost Tier |
 |-------|-------|--------|------------|-----------|
@@ -187,7 +187,7 @@ Covered by ChatGPT Plus subscription—no additional per-token charges.
 - Cost optimization
 
 ### Cost Advantage
-At $0.075/1K input, it's 200x cheaper than Opus for simple tasks.
+At $0.075/1M input, it's 200x cheaper than Opus for simple tasks.
 
 ---
 
