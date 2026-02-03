@@ -1,6 +1,33 @@
 ---
-name: A.I. Smart-Router
-description: Intelligent model routing for multi-provider AI setups. Automatically selects the optimal AI model using tiered classification (intent → complexity → special cases). Use when you have multiple AI providers configured and want automatic model selection. Works silently by default. Supports Claude, GPT, Gemini, Grok with automatic fallback chains and cost optimization.
+name: smart-router
+description: >
+  Expertise-aware model router with semantic domain scoring, context-overflow protection,
+  and security redaction. Automatically selects the optimal AI model using weighted
+  expertise scoring (Feb 2026 benchmarks). Supports Claude, GPT, Gemini, Grok with
+  automatic fallback chains, HITL gates, and cost optimization.
+author: c0nSpIc0uS7uRk3r
+version: 2.0.0
+license: MIT
+metadata:
+  openclaw:
+    requires:
+      bins: ["python3"]
+      env: ["ANTHROPIC_API_KEY"]
+    optional_env: ["GOOGLE_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY"]
+  features:
+    - Semantic domain detection
+    - Expertise-weighted scoring (0-100)
+    - Risk-based mandatory routing
+    - Context overflow protection (>150K → Gemini)
+    - Security credential redaction
+    - Circuit breaker with persistent state
+    - HITL gate for low-confidence routing
+  benchmarks:
+    source: "Feb 2026 MLOC Analysis"
+    models:
+      - "Claude Opus 4.5: SWE-bench 80.9%"
+      - "GPT-5.2: AIME 100%, Control Flow 22 errors/MLOC"
+      - "Gemini 3 Pro: Concurrency 69 issues/MLOC"
 ---
 
 # A.I. Smart-Router

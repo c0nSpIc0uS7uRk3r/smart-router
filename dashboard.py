@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from state_manager import StateManager
 from router_gateway import SmartRouter, CostTier
+from semantic_router import SemanticRouter, SemanticDecision
 
 
 class RouterDashboard:
@@ -65,6 +66,12 @@ class RouterDashboard:
             available_providers=self.config.get("providers", {}).get("available",
                 ["anthropic", "openai", "google", "xai"])
         )
+        
+        # Initialize semantic router
+        try:
+            self.semantic_router = SemanticRouter()
+        except Exception:
+            self.semantic_router = None
     
     def render_full(self) -> str:
         """Render full dashboard display."""
@@ -257,25 +264,107 @@ class RouterDashboard:
             "credentials": 1,  # The test key we caught
         }
     
-    def process_command(self, command: str) -> Optional[str]:
+    def render_semantic(self, query: str, context_tokens: int = 0) -> str:
+        """Render semantic analysis for a query."""
+        if not self.semantic_router:
+            return "❌ Semantic Router not initialized"
+        
+        decision = self.semantic_router.route(query, context_tokens)
+        
+        lines = [
+            "**🧠 Semantic Analysis (Phase G)**\n",
+            f"**Query:** {query[:80]}{'...' if len(query) > 80 else ''}\n",
+        ]
+        
+        # Detected domains
+        if decision.detected_domains:
+            domains = " | ".join(f"`{d.domain}` ({d.score:.0f}%)" for d in decision.detected_domains)
+            lines.append(f"**Domains:** {domains}\n")
+        else:
+            lines.append("**Domains:** None detected\n")
+        
+        # Risk override
+        if decision.risk_override:
+            lines.append(f"⚠️ **RISK DOMAIN:** `{decision.risk_override}` — Mandatory routing enforced\n")
+        
+        # Context override
+        if decision.context_override:
+            lines.append(f"📄 **CONTEXT OVERRIDE:** {context_tokens:,} tokens (Gemini required)\n")
+        
+        # Model rankings
+        lines.append("**Model Rankings:**")
+        for i, ranking in enumerate(decision.model_rankings[:5]):
+            marker = "→" if ranking.model_id == decision.selected_model else " "
+            mandatory = " `[MANDATORY]`" if ranking.is_mandatory else ""
+            lines.append(f"{marker} {i+1}. {ranking.display_name}: {ranking.total_score:.1f}{mandatory}")
+        
+        lines.append("")
+        
+        # Decision summary
+        lines.append(f"**Selected:** `{decision.selected_model}` (Agent: `{decision.agent_id or 'main'}`)")
+        lines.append(f"**Confidence:** {decision.confidence:.0f}%")
+        lines.append(f"**Expertise Score:** {decision.expertise_score:.1f}")
+        
+        # HITL warning
+        if decision.hitl_required:
+            lines.append(f"\n🚨 **HITL REQUIRED:** {decision.hitl_message}")
+        
+        return "\n".join(lines)
+    
+    def render_expert_matrix(self) -> str:
+        """Render the expert matrix configuration."""
+        if not self.semantic_router:
+            return "❌ Semantic Router not initialized"
+        
+        lines = [
+            "**📊 Expert Matrix (Phase G)**\n",
+            "```",
+            "MODEL           │ TOP DOMAINS                    │ COST",
+            "────────────────┼────────────────────────────────┼─────",
+        ]
+        
+        for model_id, config in self.semantic_router.models.items():
+            name = config["display_name"][:14].ljust(14)
+            
+            # Get top 2 domains
+            domains = config.get("expert_domains", {})
+            top_domains = sorted(domains.items(), key=lambda x: x[1], reverse=True)[:2]
+            domain_str = ", ".join(f"{d[0][:8]}({d[1]})" for d in top_domains)[:30].ljust(30)
+            
+            cost_tier = config.get("cost_tier", 2)
+            cost = "$" * cost_tier
+            
+            lines.append(f"{name} │ {domain_str} │ {cost}")
+        
+        lines.append("```")
+        lines.append("\n_Risk domains (mandatory routing): medical, financial, terminal/shell, security_")
+        
+        return "\n".join(lines)
+    
+    def process_command(self, command: str, context_tokens: int = 0) -> Optional[str]:
         """
         Process a /router command.
         
         Returns the appropriate display or None if not a router command.
         """
-        command = command.strip().lower()
+        command_lower = command.strip().lower()
         
-        if command in ["/router dashboard", "/router"]:
+        if command_lower in ["/router dashboard", "/router"]:
             return self.render_full()
-        elif command == "/router status":
+        elif command_lower == "/router status":
             return self.render_status()
-        elif command == "/router circuits":
+        elif command_lower == "/router circuits":
             return self.render_circuits()
-        elif command == "/router security":
+        elif command_lower == "/router security":
             return self.render_security()
-        elif command == "/router stats":
+        elif command_lower == "/router stats":
             return self.render_stats()
-        elif command == "/router help":
+        elif command_lower == "/router matrix":
+            return self.render_expert_matrix()
+        elif command_lower.startswith("/router analyze "):
+            query = command[16:].strip()
+            return self.render_semantic(query, context_tokens)
+        elif command_lower == "/router help":
             return (
                 "**Smart Router Commands**\n\n"
                 "`/router dashboard` - Full dashboard\n"
@@ -283,6 +372,8 @@ class RouterDashboard:
                 "`/router circuits` - Circuit breaker states\n"
                 "`/router security` - Security log summary\n"
                 "`/router stats` - Token efficiency stats\n"
+                "`/router matrix` - Expert model matrix (Phase G)\n"
+                "`/router analyze <query>` - Semantic analysis dry run\n"
                 "`/router help` - This help message"
             )
         

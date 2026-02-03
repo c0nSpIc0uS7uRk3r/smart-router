@@ -77,9 +77,10 @@ class ExecutionPlan:
         if not self.should_delegate or not self.spawn_params:
             return ""
         
+        agent_part = f'agentId="{self.spawn_params["agentId"]}"' if "agentId" in self.spawn_params else f'model="{self.spawn_params.get("model", "default")}"'
         return f"""sessions_spawn(
     task="{self.spawn_params['task'][:100]}...",
-    model="{self.spawn_params['model']}",
+    {agent_part},
     label="{self.spawn_params['label']}"
 )"""
     
@@ -159,16 +160,23 @@ class RouterExecutor:
     # Models that should NOT trigger delegation (process in main session)
     MAIN_SESSION_MODELS = ["opus"]  # Current default model
     
-    # Model ID mapping for sessions_spawn
-    MODEL_IDS = {
-        "opus": "anthropic/claude-opus-4-5",
+    # Agent ID mapping for sessions_spawn (configured in openclaw.json)
+    # None means use main session (no delegation needed for that tier)
+    AGENT_IDS = {
+        "opus": None,       # Main session handles this
+        "sonnet": None,     # Main session with model override
+        "haiku": None,      # Main session with model override  
+        "gpt5": "gpt",      # GPT-5 agent
+        "gemini-pro": "gemini",  # Gemini Pro agent
+        "flash": "flash",   # Gemini Flash agent
+        "grok2": "grok",    # Grok agent
+        "grok3": "grok",    # Grok agent (fallback)
+    }
+    
+    # Model overrides for Anthropic tiers (handled in main session)
+    MODEL_OVERRIDES = {
         "sonnet": "anthropic/claude-sonnet-4-5",
         "haiku": "anthropic/claude-haiku-3-5",
-        "gpt5": "openai/gpt-5",
-        "gemini-pro": "google/gemini-2.5-pro",
-        "flash": "google/gemini-2.5-flash",
-        "grok2": "xai/grok-2-latest",
-        "grok3": "xai/grok-3",
     }
     
     def __init__(self, config_path: Optional[str] = None):
@@ -204,8 +212,18 @@ class RouterExecutor:
     
     def _normalize_model(self, model_id: str) -> str:
         """Normalize full model ID to alias."""
-        reverse_map = {v: k for k, v in self.MODEL_IDS.items()}
-        return reverse_map.get(model_id, model_id)
+        # Full model ID to alias mapping
+        FULL_TO_ALIAS = {
+            "anthropic/claude-opus-4-5": "opus",
+            "anthropic/claude-sonnet-4-5": "sonnet",
+            "anthropic/claude-haiku-3-5": "haiku",
+            "openai/gpt-5": "gpt5",
+            "google/gemini-2.5-pro": "gemini-pro",
+            "google/gemini-2.5-flash": "flash",
+            "xai/grok-2-latest": "grok2",
+            "xai/grok-3": "grok3",
+        }
+        return FULL_TO_ALIAS.get(model_id, model_id)
     
     def analyze(
         self,
@@ -263,11 +281,19 @@ class RouterExecutor:
             self._task_counter += 1
             task_id = f"router-{self._task_counter}-{int(time.time())}"
             
+            agent_id = self.AGENT_IDS.get(recommended)
+            
             spawn_params = {
                 "task": message,
-                "model": self.MODEL_IDS.get(recommended, recommended),
                 "label": f"router-{decision.intent.name.lower()}-{recommended}",
             }
+            
+            if agent_id:
+                # Delegate to configured agent
+                spawn_params["agentId"] = agent_id
+            elif recommended in self.MODEL_OVERRIDES:
+                # Use main agent with model override
+                spawn_params["model"] = self.MODEL_OVERRIDES[recommended]
         else:
             task_id = None
         

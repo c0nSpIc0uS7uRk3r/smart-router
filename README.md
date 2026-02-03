@@ -1,6 +1,8 @@
 # 🧠 A.I. Smart-Router
 
-**Intelligent model routing for multi-provider AI setups.** Automatically selects the optimal AI model for each request using tiered classification — analyzing intent, complexity, and cost to route simple questions to fast/cheap models and complex tasks to powerful ones. Works transparently by default; users just chat normally and get the best model for their needs.
+**Expertise-aware model router for multi-provider AI setups.** Uses weighted semantic scoring and Feb 2026 benchmarks to route each request to the best-suited model. Security redaction, context-overflow protection, and HITL gates for ambiguous intents.
+
+> **v2.0.0** — Now with Phase G Semantic Specialization: expertise-weighted scoring, concurrency detection, and risk-based mandatory routing.
 
 ---
 
@@ -8,15 +10,39 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Tiered Classification** | Three-step decision process: Intent Detection → Complexity Estimation → Model Selection |
-| **Automatic Fallbacks** | If a model fails (timeout, rate limit, error), automatically cascades to the next best option |
-| **Token Exhaustion Handling** | Automatically switches models when token quota is exhausted, with user notification |
-| **Transparent Notifications** | Users are informed when a model switch occurs, including which model completed their request |
-| **Cost Optimization** | Simple tasks use budget models ($); complex tasks unlock premium models ($$$) |
-| **Dynamic Discovery** | Auto-detects configured providers at runtime — no hardcoded assumptions |
-| **Transparent Mode** | Works silently by default; optional verbose mode shows routing decisions |
-| **Multi-Provider** | Supports Anthropic (Claude), OpenAI (GPT), Google (Gemini), and xAI (Grok) |
-| **Portable** | Install on any OpenClaw workspace regardless of which providers you have |
+| **Semantic Domain Detection** | Identifies SOFTWARE_ARCH, CONCURRENCY, LOGICAL_PRECISION, MASSIVE_SYNTHESIS, etc. |
+| **Expertise-Weighted Scoring** | Each model scored 0-100 per domain based on Feb 2026 benchmarks (MLOC analysis) |
+| **Risk-Based Mandatory Routing** | Medical → GPT-5.2, Terminal/Shell → Opus, Concurrency → Gemini (enforced) |
+| **Context Overflow Protection** | >150K tokens auto-routes to Gemini Pro (1M context window) |
+| **Security Credential Redaction** | API keys, tokens, passwords blocked before reaching any model |
+| **Circuit Breaker** | Persistent state tracks model failures; auto-bypasses degraded providers |
+| **HITL Gate** | Low-confidence (<75%) routing triggers Telegram notification for approval |
+| **Automatic Fallbacks** | If a model fails, cascades to next best option automatically |
+| **Cost Optimization** | Simple tasks use Flash ($0.075/M); complex tasks unlock Opus ($$$$) |
+| **Multi-Provider** | Anthropic (Claude), OpenAI (GPT), Google (Gemini), xAI (Grok) |
+
+---
+
+## 🎯 Expert Domain Map (Feb 2026 Benchmarks)
+
+| Model | Expert Domain | Benchmark | Known Blind Spot |
+|-------|---------------|-----------|------------------|
+| **Claude Opus 4.5** | SOFTWARE_ARCH | SWE-bench 80.9%, Terminal-bench 59.3% | High cost, verbosity |
+| **GPT-5.2 (High)** | LOGICAL_PRECISION | 100% AIME, 22 control flow errors/MLOC | 414 concurrency issues/MLOC |
+| **Gemini 3 Pro** | MASSIVE_SYNTHESIS | 1M+ context, 69 concurrency issues/MLOC | 200 control flow errors/MLOC |
+| **Grok-3** | REALTIME_SIGNAL | Native X/Twitter, 5-min news freshness | Less rigorous formal logic |
+| **Flash 2.5** | SYSTEM_ROUTINE | 200ms latency, $0.075/M tokens | Shallow multi-step reasoning |
+
+### Mandatory Overrides
+
+| Risk Domain | Mandatory Model | Reason |
+|-------------|-----------------|--------|
+| Medical/Health | GPT-5.2 | 1.6% HealthBench error rate (lowest) |
+| Financial Math | GPT-5.2 | 100% AIME accuracy |
+| Terminal/Shell | Opus | 95.3% prompt-injection robustness |
+| Security Audit | Opus | 96.2% security constraint verification |
+| High Concurrency | Gemini Pro | 6x fewer concurrency bugs than GPT-5 |
+| Context >150K | Gemini Pro | Only model with 1M+ context window |
 
 ---
 
