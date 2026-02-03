@@ -548,6 +548,101 @@ def handle_rate_limit_exceeded(user_id: str, limit_type: str):
 
 ---
 
+## Token Exhaustion Security
+
+When models become unavailable due to token exhaustion or rate limits, additional security considerations apply.
+
+### Fallback Trust Boundaries
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              FALLBACK TRUST VERIFICATION                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Before falling back to a different model/provider:             │
+│                                                                  │
+│  1. VERIFY the fallback model meets the same trust tier         │
+│     - Don't fall from Tier 1 (Anthropic) to Tier 3 (unknown)   │
+│     - Maintain data classification requirements                  │
+│                                                                  │
+│  2. RE-EVALUATE data sensitivity                                 │
+│     - Original model may have had special compliance (HIPAA)    │
+│     - Fallback may not — BLOCK if compliance required           │
+│                                                                  │
+│  3. LOG the fallback event for audit trail                      │
+│     - Which model failed, why, what was the fallback            │
+│     - Essential for incident response                            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fallback Chain Security Rules
+
+| Original Model Trust | Allowed Fallback Trust | Action if Violated |
+|---------------------|------------------------|-------------------|
+| Tier 1 (High) | Tier 1 only | Block request, notify user |
+| Tier 2 (Standard) | Tier 1 or 2 | Allow with warning |
+| Tier 3 (Evaluate) | Any tier | Allow (already low trust) |
+
+### Token Exhaustion Attack Vectors
+
+| Attack | Vector | Mitigation |
+|--------|--------|------------|
+| Forced downgrade | Exhaust premium model tokens to force cheaper (possibly less secure) fallback | Maintain trust tier in fallback chain |
+| Cost amplification | Trigger expensive model repeatedly to drain quota | Rate limiting + cost caps |
+| Availability exhaustion | Flood requests to exhaust all fallback options | Circuit breaker + queue management |
+| Timing attack | Measure response time differences to infer model | Normalize response timing |
+
+### Notification Security
+
+When notifying users of model switches:
+
+```python
+def build_secure_switch_notification(failed_model: str, reason: str, success_model: str) -> str:
+    """
+    Build notification without leaking sensitive details.
+    """
+    # SAFE: Generic model names only
+    safe_failed = sanitize_model_name(failed_model)
+    safe_success = sanitize_model_name(success_model)
+    
+    # SAFE: Generic reason categories only  
+    safe_reason = {
+        "token quota exhausted": "quota limit reached",
+        "rate limit exceeded": "rate limit reached", 
+        "API timeout": "request timeout",
+        "API error: 401": "authentication issue",  # Don't expose error codes
+        "API error: 500": "provider error",
+    }.get(reason, "temporary unavailability")
+    
+    # DON'T include:
+    # - Specific error codes or messages from provider
+    # - Token counts or quota details
+    # - Internal system paths or configurations
+    # - API key identifiers or account details
+    
+    return f"Model switched from {safe_failed} to {safe_success} due to {safe_reason}."
+```
+
+### Circuit Breaker Security
+
+The circuit breaker prevents repeated failures but must be secured:
+
+```python
+CIRCUIT_BREAKER_CONFIG = {
+    "threshold": 3,              # Failures before opening
+    "reset_ms": 300_000,         # 5 min cooldown
+    "max_open_duration_ms": 600_000,  # Force re-check after 10 min
+    
+    # Security additions:
+    "log_all_trips": True,       # Audit trail
+    "alert_on_cascade": True,    # Notify if multiple circuits open
+    "preserve_trust_tier": True, # Don't bypass trust checks when circuit resets
+}
+```
+
+---
+
 ## Security Checklist
 
 Before deploying the router:
@@ -560,6 +655,9 @@ Before deploying the router:
 - [ ] Incident response plan ready
 - [ ] Compliance requirements identified
 - [ ] Key rotation schedule set
+- [ ] Fallback chains respect trust boundaries
+- [ ] Token exhaustion notifications sanitized
+- [ ] Circuit breaker configured with security settings
 
 ---
 
