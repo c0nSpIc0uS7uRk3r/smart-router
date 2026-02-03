@@ -296,6 +296,60 @@ After a model switch, the agent should note in the response that:
 
 This ensures transparency and sets appropriate expectations.
 
+### Streaming Responses with Fallback
+
+When using streaming responses, fallback handling requires special consideration:
+
+```python
+async def execute_with_streaming_fallback(primary_model: str, fallback_chain: list[str], request: str):
+    """
+    Handle streaming responses with mid-stream fallback.
+    
+    If a model fails DURING streaming (not before), the partial response is lost.
+    Strategy: Don't start streaming until first chunk received successfully.
+    """
+    models_to_try = [primary_model] + fallback_chain
+    
+    for model in models_to_try:
+        try:
+            # Test with non-streaming ping first (optional, adds latency)
+            # await test_model_availability(model)
+            
+            # Start streaming
+            stream = await call_model_streaming(model, request)
+            first_chunk = await stream.get_first_chunk(timeout=10_000)  # 10s timeout for first chunk
+            
+            # If we got here, model is responding — continue streaming
+            yield first_chunk
+            async for chunk in stream:
+                yield chunk
+            return  # Success
+            
+        except (FirstChunkTimeout, StreamError) as e:
+            log_fallback(model, str(e))
+            continue  # Try next model
+    
+    # All models failed
+    yield build_exhaustion_error(models_to_try)
+```
+
+**Key insight:** Wait for the first chunk before committing to a model. If the first chunk times out, fall back before any partial response is shown to the user.
+
+### Retry Timing Configuration
+
+```python
+RETRY_CONFIG = {
+    "initial_timeout_ms": 30_000,     # 30s for first attempt
+    "fallback_timeout_ms": 20_000,    # 20s for fallback attempts (faster fail)
+    "max_retries_per_model": 1,       # Don't retry same model
+    "backoff_multiplier": 1.5,        # Not used (no same-model retry)
+    "circuit_breaker_threshold": 3,   # Failures before skipping model entirely
+    "circuit_breaker_reset_ms": 300_000  # 5 min before trying failed model again
+}
+```
+
+**Circuit breaker:** If a model fails 3 times in 5 minutes, skip it entirely for the next 5 minutes. This prevents repeatedly hitting a down service.
+
 ## Fallback Chains
 
 When the preferred model fails (rate limit, API down, error), cascade to the next option:
