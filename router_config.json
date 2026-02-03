@@ -5,7 +5,7 @@
   
   "routing": {
     "enabled": true,
-    "mode": "dry_run",
+    "mode": "live",
     "log_decisions": true,
     "show_routing_default": false
   },
