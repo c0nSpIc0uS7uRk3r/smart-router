@@ -403,6 +403,60 @@ The router is designed to minimize costs without sacrificing quality:
 
 ---
 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No models available" | No providers configured | Add at least one API key |
+| Always routes to same model | Only one provider active | Add more providers for variety |
+| Expensive model for simple query | Complexity mis-detected | Use `[show routing]` to debug |
+| Real-time query not using Grok | Grok not configured | Add xAI API key |
+| Large document fails | Context exceeded | Check if Gemini Pro available |
+
+### Debugging Routing Decisions
+
+1. **Add `[show routing]` to your message:**
+   ```
+   [show routing] Your question here
+   ```
+
+2. **Check provider status:**
+   ```
+   /router status
+   ```
+
+3. **Force refresh providers:**
+   ```
+   /router refresh
+   ```
+
+### Model Not Responding
+
+If a model times out or errors:
+1. Router automatically tries fallback chain
+2. Check `/router status` for recent failures
+3. Verify API key is valid
+4. Check provider status page (Anthropic, OpenAI, etc.)
+
+### Unexpected Model Selection
+
+If routing seems wrong:
+1. Check intent detection — is it classifying correctly?
+2. Check complexity — short queries = SIMPLE = cheap models
+3. Check special cases — context size, real-time needs
+4. Override manually: `use opus: your query`
+
+### Cost Higher Than Expected
+
+1. Check if queries are being classified as COMPLEX
+2. Use `[show routing]` to see why
+3. Simplify queries for simple tasks
+4. Add budget models (Flash, Haiku) if missing
+
+---
+
 ## 🤝 Contributing
 
 Contributions welcome! Areas of interest:

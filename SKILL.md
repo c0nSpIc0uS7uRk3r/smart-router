@@ -82,6 +82,36 @@ The router uses a three-tier decision process:
 - Summaries
 - Conversational
 
+### MIXED Intent (Multiple Intents Detected)
+When a request contains multiple clear intents (e.g., "Write code to analyze this data and explain it creatively"):
+
+1. **Identify primary intent** — What's the main deliverable?
+2. **Route to highest-capability model** — Mixed tasks need versatility
+3. **Default to COMPLEX complexity** — Multi-intent = multi-step
+
+**Examples:**
+- "Write code AND explain how it works" → CODE (primary) + ANALYSIS → Route to Opus
+- "Summarize this AND what's the latest news on it" → REALTIME takes precedence → Grok
+- "Creative story using real current events" → REALTIME + CREATIVE → Grok (real-time wins)
+
+## Language Handling
+
+**Non-English requests** are handled normally — all supported models have multilingual capabilities:
+
+| Model | Non-English Support |
+|-------|---------------------|
+| Opus/Sonnet/Haiku | Excellent (100+ languages) |
+| GPT-5 | Excellent (100+ languages) |
+| Gemini Pro/Flash | Excellent (100+ languages) |
+| Grok | Good (major languages) |
+
+**Intent detection still works** because:
+- Keyword patterns include common non-English equivalents
+- Code intent detected by file extensions, code blocks (language-agnostic)
+- Complexity estimated by query length (works across languages)
+
+**Edge case:** If intent unclear due to language, default to GENERAL intent with MEDIUM complexity.
+
 ## Complexity Signals
 
 ### Simple Complexity ($)
