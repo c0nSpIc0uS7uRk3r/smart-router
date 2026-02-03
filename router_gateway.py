@@ -358,7 +358,7 @@ class InputSanitizer:
     
     # Patterns that BLOCK the request (credential leakage)
     BLOCK_PATTERNS = [
-        (r"sk-ant-[a-zA-Z0-9]{20,}", "Anthropic API key"),
+        (r"sk-ant-[a-zA-Z0-9\-]{10,}", "Anthropic API key"),
         (r"sk-[a-zA-Z0-9]{48,}", "OpenAI API key"),
         (r"xai-[a-zA-Z0-9]{20,}", "xAI API key"),
         (r"AIza[a-zA-Z0-9]{35}", "Google API key"),
