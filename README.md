@@ -1,4 +1,4 @@
-# 🧠 Smart Router
+# 🧠 A.I. Smart-Router
 
 **Intelligent model routing for multi-provider AI setups.** Automatically selects the optimal AI model for each request using tiered classification — analyzing intent, complexity, and cost to route simple questions to fast/cheap models and complex tasks to powerful ones. Works transparently by default; users just chat normally and get the best model for their needs.
 

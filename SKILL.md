@@ -1,9 +1,9 @@
 ---
-name: smart-router
+name: A.I. Smart-Router
 description: Intelligent model routing for multi-provider AI setups. Automatically selects the optimal AI model using tiered classification (intent → complexity → special cases). Use when you have multiple AI providers configured and want automatic model selection. Works silently by default. Supports Claude, GPT, Gemini, Grok with automatic fallback chains and cost optimization.
 ---
 
-# Smart Model Router
+# A.I. Smart-Router
 
 Intelligently route requests to the optimal AI model using tiered classification with automatic fallback handling and cost optimization.
 
