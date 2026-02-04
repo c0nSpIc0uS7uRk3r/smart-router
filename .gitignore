@@ -37,3 +37,8 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
