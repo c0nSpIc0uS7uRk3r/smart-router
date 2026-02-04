@@ -33,6 +33,32 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+# Phase H: Context overflow prevention
+PHASE_H_THRESHOLD = 180_000  # Force Gemini if >180K tokens
+PHASE_H_MODEL = "gemini-pro"
+PHASE_H_MODEL_ID = "google/gemini-2.5-pro"
+
+
+def is_context_overflow_error(error: Exception) -> bool:
+    """Check if error is a context overflow (422/400) that should trigger Gemini retry."""
+    error_str = str(error).lower()
+    overflow_keywords = [
+        "context length", "context_length", "token limit", "maximum context",
+        "too many tokens", "exceeds the model", "input too long", "request too large"
+    ]
+    
+    # Check HTTP status
+    status = getattr(error, "status_code", getattr(error, "status", None))
+    if status in [400, 413, 422]:
+        return any(kw in error_str for kw in overflow_keywords)
+    
+    return any(kw in error_str for kw in overflow_keywords)
+
+
+def get_gemini_fallback() -> tuple[str, str]:
+    """Return (alias, model_id) for Gemini Pro fallback."""
+    return PHASE_H_MODEL, PHASE_H_MODEL_ID
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("smart-router")
@@ -644,6 +670,20 @@ class SmartRouter:
         # Check for [show routing] flag
         show_routing = "[show routing]" in text.lower()
         clean_text = re.sub(r"\[show routing\]", "", text, flags=re.IGNORECASE).strip()
+        
+        # PHASE H: Pre-flight token check - Force Gemini if >180K
+        if context_tokens > PHASE_H_THRESHOLD:
+            logger.warning(f"Phase H: Context {context_tokens:,} > {PHASE_H_THRESHOLD:,} - forcing Gemini Pro")
+            return RoutingDecision(
+                intent=Intent.ANALYSIS,
+                complexity=Complexity.COMPLEX,
+                selected_model=PHASE_H_MODEL,
+                fallback_chain=["flash"],
+                reason=f"Phase H: Context overflow prevention ({context_tokens:,} tokens)",
+                special_case="phase_h_overflow_prevention",
+                context_tokens=context_tokens,
+                show_routing=show_routing
+            )
         
         # Check for user model override
         override = self._check_user_override(clean_text)
