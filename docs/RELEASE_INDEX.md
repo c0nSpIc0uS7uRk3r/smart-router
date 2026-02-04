@@ -6,3 +6,4 @@
 - Verification: docs/VERIFY_v2.1.1.md
 - Testing guide: docs/TESTING.md
 - Regression tests: tests/test_context_armor.py
+- Problem-solution ledger: docs/PROBLEM_SOLUTION_LEDGER.md
