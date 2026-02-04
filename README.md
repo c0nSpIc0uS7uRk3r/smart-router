@@ -2,7 +2,7 @@
 
 **Expertise-aware model router for multi-provider AI setups.** Uses weighted semantic scoring and Feb 2026 benchmarks to route each request to the best-suited model. Security redaction, context-overflow protection, and HITL gates for ambiguous intents.
 
-> **v2.0.0** — Now with Phase G Semantic Specialization: expertise-weighted scoring, concurrency detection, and risk-based mandatory routing.
+> **v2.1.1** — Phase G Semantic Specialization + Phase H Context-Armor. Expertise-weighted scoring, context-overflow protection (150K/180K thresholds), silent retry on 422 errors, and agentId-based executor.
 
 ---
 
@@ -46,7 +46,7 @@
 
 ---
 
-## 🛡️ Context Safety (v2.1.0)
+## 🛡️ Context Safety (v2.1.1)
 
 **Never hit an overflow again with Proactive Budgeting.**
 
