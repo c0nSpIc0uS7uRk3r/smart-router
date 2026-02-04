@@ -71,3 +71,7 @@ v2.1.1 completes the Context-Armor implementation and adds operational protocols
 - `context_guard.py` — Token budgeting module
 - `CHANGELOG.md` — Version history
 - `README.md` — Updated documentation
+
+## Operational Notes
+
+Gateway overflow incidents may occur when chat output exceeds pipe capacity (separate from model context limits). Mitigation: POINTER MODE (disk-first output), staged exports, and `reset_context` for clean recovery. See [POSTMORTEM_GATEWAY_OVERFLOW.md](POSTMORTEM_GATEWAY_OVERFLOW.md) for details.
