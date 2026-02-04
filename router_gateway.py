@@ -33,31 +33,136 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-# Phase H: Context overflow prevention
-PHASE_H_THRESHOLD = 180_000  # Force Gemini if >180K tokens
-PHASE_H_MODEL = "gemini-pro"
-PHASE_H_MODEL_ID = "google/gemini-2.5-pro"
+# =============================================================================
+# PHASE H: PRE-FLIGHT TOKEN BUDGETING
+# =============================================================================
+
+# Try tiktoken, fallback to heuristic
+try:
+    import tiktoken
+    _ENCODER = tiktoken.get_encoding("cl100k_base")
+    _USE_TIKTOKEN = True
+except ImportError:
+    _ENCODER = None
+    _USE_TIKTOKEN = False
+
+CONTEXT_SAFETY_THRESHOLD = 180_000
+GEMINI_PRO_MODEL = "google/gemini-2.5-pro"
 
 
-def is_context_overflow_error(error: Exception) -> bool:
-    """Check if error is a context overflow (422/400) that should trigger Gemini retry."""
-    error_str = str(error).lower()
-    overflow_keywords = [
-        "context length", "context_length", "token limit", "maximum context",
-        "too many tokens", "exceeds the model", "input too long", "request too large"
-    ]
+def calculate_budget(messages: list, model: str = "opus") -> int:
+    """
+    Calculate total token budget for messages.
     
-    # Check HTTP status
-    status = getattr(error, "status_code", getattr(error, "status", None))
-    if status in [400, 413, 422]:
-        return any(kw in error_str for kw in overflow_keywords)
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        model: Target model (for encoding selection)
     
-    return any(kw in error_str for kw in overflow_keywords)
+    Returns:
+        Total token count (system + history + current input)
+    """
+    if not messages:
+        return 0
+    
+    total = 0
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, list):
+            # Multi-part message
+            content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+        
+        if _USE_TIKTOKEN and _ENCODER:
+            total += len(_ENCODER.encode(str(content)))
+        else:
+            # Heuristic: ~4 chars per token
+            total += len(str(content)) // 4
+        
+        # Add overhead for message structure
+        total += 4
+    
+    return total
 
 
-def get_gemini_fallback() -> tuple[str, str]:
-    """Return (alias, model_id) for Gemini Pro fallback."""
-    return PHASE_H_MODEL, PHASE_H_MODEL_ID
+def context_guard_check(messages: list, selected_model: str) -> tuple[str, bool, list]:
+    """
+    Pre-flight context guard check with JIT compaction.
+    
+    Returns:
+        (final_model, was_overridden, compacted_messages)
+    """
+    tokens = calculate_budget(messages)
+    
+    # STRIKE 1: Force Gemini if >180K
+    if tokens > CONTEXT_SAFETY_THRESHOLD:
+        logger.warning(f"[Context Guard] Payload: {tokens:,}. Switching to Gemini Pro for safety.")
+        return GEMINI_PRO_MODEL, True, messages
+    
+    # STRIKE 3: JIT Compaction if 150K-180K
+    if tokens > 150_000:
+        logger.info(f"[Context Guard] Payload: {tokens:,}. Triggering preventative compaction.")
+        compacted = jit_compact(messages)
+        new_tokens = calculate_budget(compacted)
+        logger.info(f"[Context Guard] Compacted: {tokens:,} → {new_tokens:,} tokens.")
+        return selected_model, False, compacted
+    
+    return selected_model, False, messages
+
+
+def jit_compact(messages: list) -> list:
+    """
+    JIT Compaction: Summarize oldest 30% of messages.
+    Reason: Preventative compaction to keep within Opus limits.
+    """
+    if len(messages) < 4:
+        return messages
+    
+    split_idx = max(1, int(len(messages) * 0.3))
+    old_messages = messages[:split_idx]
+    recent_messages = messages[split_idx:]
+    
+    # Summarize old messages into one
+    summary_parts = []
+    for msg in old_messages:
+        role = msg.get("role", "unknown")
+        content = str(msg.get("content", ""))[:200]
+        summary_parts.append(f"[{role}]: {content}...")
+    
+    summary_msg = {
+        "role": "system",
+        "content": f"[Compacted History]\n" + "\n".join(summary_parts)
+    }
+    
+    return [summary_msg] + recent_messages
+
+
+async def execute_with_silent_retry(call_func, messages: list, model: str):
+    """
+    STRIKE 2: Error Handshake - Silent retry on context overflow.
+    
+    Catches context_length_exceeded errors and retries with Gemini Pro.
+    Returns successful result without surfacing the error.
+    """
+    try:
+        return await call_func(messages, model)
+    except Exception as e:
+        error_str = str(e).lower()
+        
+        # Check for context overflow errors
+        is_overflow = any(kw in error_str for kw in [
+            "context_length_exceeded", "context window", "too many tokens",
+            "maximum context length", "input too long"
+        ])
+        
+        # Check status codes
+        status = getattr(e, "status_code", getattr(e, "status", None))
+        if status in [400, 413, 422]:
+            is_overflow = True
+        
+        if is_overflow:
+            logger.warning(f"[Error Handshake] Context overflow on {model}. Silent retry with Gemini Pro.")
+            return await call_func(messages, GEMINI_PRO_MODEL)
+        
+        raise  # Re-raise non-overflow errors
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -671,19 +776,24 @@ class SmartRouter:
         show_routing = "[show routing]" in text.lower()
         clean_text = re.sub(r"\[show routing\]", "", text, flags=re.IGNORECASE).strip()
         
-        # PHASE H: Pre-flight token check - Force Gemini if >180K
-        if context_tokens > PHASE_H_THRESHOLD:
-            logger.warning(f"Phase H: Context {context_tokens:,} > {PHASE_H_THRESHOLD:,} - forcing Gemini Pro")
+        # PHASE H: Pre-flight token audit
+        audit = pre_flight_token_audit(clean_text, context_tokens, "opus")  # Default target
+        
+        if audit["force_gemini"]:
+            logger.warning(f"Phase H: Context {audit['total_tokens']:,} > {PHASE_H_FORCE_THRESHOLD:,} - forcing Gemini Pro")
             return RoutingDecision(
                 intent=Intent.ANALYSIS,
                 complexity=Complexity.COMPLEX,
                 selected_model=PHASE_H_MODEL,
                 fallback_chain=["flash"],
-                reason=f"Phase H: Context overflow prevention ({context_tokens:,} tokens)",
+                reason=f"Phase H: Context overflow prevention ({audit['total_tokens']:,} tokens)",
                 special_case="phase_h_overflow_prevention",
-                context_tokens=context_tokens,
+                context_tokens=audit["total_tokens"],
                 show_routing=show_routing
             )
+        
+        if audit["needs_compaction"]:
+            logger.info(f"Phase H: {audit['utilization']:.1%} utilization - JIT compaction recommended (target: {audit['compaction_target']:,})")
         
         # Check for user model override
         override = self._check_user_override(clean_text)

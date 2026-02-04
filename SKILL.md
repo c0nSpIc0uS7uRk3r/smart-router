@@ -6,7 +6,7 @@ description: >
   expertise scoring (Feb 2026 benchmarks). Supports Claude, GPT, Gemini, Grok with
   automatic fallback chains, HITL gates, and cost optimization.
 author: c0nSpIc0uS7uRk3r
-version: 2.0.0
+version: 2.1.0
 license: MIT
 metadata:
   openclaw:

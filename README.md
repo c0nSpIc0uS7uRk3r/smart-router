@@ -46,6 +46,35 @@
 
 ---
 
+## 🛡️ Context Safety (v2.1.0)
+
+**Never hit an overflow again with Proactive Budgeting.**
+
+Phase H introduces three-layer context protection:
+
+| Layer | Threshold | Action |
+|-------|-----------|--------|
+| **Strike 1: Pre-Flight** | >180K tokens | Force-route to Gemini Pro before API call |
+| **Strike 2: Silent Retry** | 422/400 error | Intercept overflow, retry with Gemini silently |
+| **Strike 3: JIT Compact** | 150K-180K | Summarize oldest 30% to stay within limits |
+
+```python
+# Pre-flight audit
+tokens = calculate_budget(messages)
+if tokens > 180_000:
+    model = "google/gemini-2.5-pro"  # Force Gemini
+
+# Silent retry on overflow
+try:
+    response = await call_model(messages, model)
+except ContextOverflow:
+    response = await call_model(messages, "google/gemini-2.5-pro")
+```
+
+**Result:** Zero context overflow errors reach the user. Ever.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Install the Skill
